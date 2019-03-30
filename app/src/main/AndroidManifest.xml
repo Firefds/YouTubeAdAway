@@ -4,10 +4,6 @@
     android:versionCode="433"
     android:versionName="4.3.3">
 
-    <uses-sdk
-        android:minSdkVersion="9"
-        android:targetSdkVersion="27" />
-
     <application
         android:allowBackup="true"
         android:directBootAware="true"

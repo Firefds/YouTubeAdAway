@@ -42,7 +42,7 @@ public class Xposed implements IXposedHookLoadPackage {
 
                 hookViews(lpparam);
 
-                new BFAsync().execute(lpparam.classLoader);
+                new BFAsync().execute(lpparam);
 
                 XposedBridge.log("YouTube: " + lpparam.packageName + " " + versionCode + " loaded with module version " + moduleVersionCode);
             } catch (Throwable t) {

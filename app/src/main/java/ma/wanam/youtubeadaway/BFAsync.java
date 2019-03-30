@@ -1,19 +1,24 @@
 package ma.wanam.youtubeadaway;
 
+import android.content.pm.ApplicationInfo;
 import android.os.AsyncTask;
 import android.os.Parcel;
 import android.os.Parcelable;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Enumeration;
 import java.util.regex.Pattern;
 
+import dalvik.system.DexFile;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
+import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
 
-public class BFAsync extends AsyncTask<ClassLoader, Void, Boolean> {
+public class BFAsync extends AsyncTask<LoadPackageParam, Void, Boolean> {
     private static ClassLoader cl;
     private static boolean found = false;
 
@@ -30,35 +35,61 @@ public class BFAsync extends AsyncTask<ClassLoader, Void, Boolean> {
     }
 
     @Override
-    protected Boolean doInBackground(ClassLoader... params) {
-        cl = params[0];
+    protected Boolean doInBackground(LoadPackageParam... params) {
+        cl = params[0].classLoader;
 
-        for (char a1 = 'z'; a1 >= 'a'; a1--) {
-            for (char a2 = 'z'; a2 >= 'a'; a2--) {
-                for (char a3 = 'z'; a3 >= 'a'; a3--) {
-                    findAndHookYouTubeAds(a1, a2, a3);
-                }
+        String[] allCl = getAllClasses(params[0].appInfo);
+
+        for (String clName : allCl) {
+            if (clName.length() < 5) {
+                findAndHookYouTubeAds(clName);
             }
         }
 
         return found;
     }
 
+    private static String[] getAllClasses(ApplicationInfo ai) {
+        ArrayList<String> classes = new ArrayList<>();
+        try {
+            XposedBridge.log(">>>>>>>>>> sourceDir: " + ai.sourceDir);
+            DexFile df = new DexFile(ai.sourceDir);
+            int iCnt = 0;
+            for (Enumeration<String> iter = df.entries(); iter.hasMoreElements(); ) {
+                String className = iter.nextElement();
+                iCnt++;
+                classes.add(className);
+            }
+
+            XposedBridge.log(">>>>>>>>>> count: " + classes.size() + "/" + iCnt);
+        } catch (Throwable e) {
+            e.printStackTrace();
+        }
+
+        return toStringArray(classes);
+    }
+
+    private static String[] toStringArray(ArrayList<String> classes) {
+        String[] array = new String[classes.size()];
+        for (int i = 0; i < classes.size(); i++) {
+            array[i] = classes.get(i);
+        }
+        return array;
+    }
+
 
     /**
-     * @param a1
-     * @param a2
-     * @param a3
+     * @param cls
      * @return true if a hook was found
      */
-    private void findAndHookYouTubeAds(char a1, char a2, char a3) {
+    private void findAndHookYouTubeAds(String cls) {
         Class<?> classObj;
         Class<?> paramObj;
         final String lCRegex = "[a-z]+";
         final Pattern lCPatern = Pattern.compile(lCRegex);
 
         try {
-            classObj = XposedHelpers.findClass(new StringBuffer().append(a1).append(a2).append(a3).toString(), cl);
+            classObj = XposedHelpers.findClass(cls, cl);
         } catch (Throwable e1) {
             return;
         }
@@ -70,8 +101,7 @@ public class BFAsync extends AsyncTask<ClassLoader, Void, Boolean> {
                 try {
                     Method[] methods = classObj.getDeclaredMethods();
                     for (Method m : methods) {
-                        if (m.getName().equals("b") && m.getReturnType().equals(boolean.class)
-                                && m.getParameterTypes().length == 1) {
+                        if (m.getReturnType().equals(boolean.class) && m.getParameterTypes().length == 1) {
                             paramObj = m.getParameterTypes()[0];
 
                             if (lCPatern.matcher(paramObj.getName()).matches()) {
